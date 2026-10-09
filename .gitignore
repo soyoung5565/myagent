@@ -1,0 +1,39 @@
+*.iml
+.gradle
+.gradle_user_home
+.idea
+.kotlin
+/local.properties
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+/misc
+
+.claude/
+.vscode/
+.agents/
+
+skills-lock.json
+
+release.jks
+*.jks
+*.keystore
+
+testbot/build
+
+log.txt
+
+output/
+
+# ReTerminal 构建输出
+ReTerminal/out/
+ReTerminal/build/
+
+# 构建产物
+*.apk
+# Python 缓存
+__pycache__/
+*.pyc

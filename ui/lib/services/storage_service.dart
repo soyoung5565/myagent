@@ -1,0 +1,217 @@
+import 'dart:convert';
+import 'dart:ui';
+
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ui/l10n/app_language_mode.dart';
+import 'package:ui/models/habitual_hand.dart';
+import 'package:ui/theme/app_theme_mode.dart';
+
+/// SharedPreferences 统一管理类。
+/// OSS 版本统一使用全局存储，不再区分登录用户作用域。
+class StorageService {
+  static SharedPreferences? _prefs;
+
+  /// 初始化 SharedPreferences
+  static Future<void> init() async {
+    _prefs = await SharedPreferences.getInstance();
+  }
+
+  static SharedPreferences get _instance {
+    if (_prefs == null) {
+      throw Exception('StorageService未初始化，请先调用 StorageService.init()');
+    }
+    return _prefs!;
+  }
+
+  static Future<bool> setString(String key, String value) async {
+    return _instance.setString(key, value);
+  }
+
+  static String? getString(String key, {String? defaultValue}) {
+    return _instance.getString(key) ?? defaultValue;
+  }
+
+  static Future<bool> setInt(String key, int value) async {
+    return _instance.setInt(key, value);
+  }
+
+  static int? getInt(String key, {int? defaultValue}) {
+    return _instance.getInt(key) ?? defaultValue;
+  }
+
+  static Future<bool> setBool(String key, bool value) async {
+    return _instance.setBool(key, value);
+  }
+
+  static bool? getBool(String key, {bool? defaultValue}) {
+    return _instance.getBool(key) ?? defaultValue;
+  }
+
+  static Future<bool> setDouble(String key, double value) async {
+    return _instance.setDouble(key, value);
+  }
+
+  static double? getDouble(String key, {double? defaultValue}) {
+    return _instance.getDouble(key) ?? defaultValue;
+  }
+
+  static Future<bool> setStringList(String key, List<String> value) async {
+    return _instance.setStringList(key, value);
+  }
+
+  static List<String>? getStringList(String key, {List<String>? defaultValue}) {
+    return _instance.getStringList(key) ?? defaultValue;
+  }
+
+  static Future<bool> setJson(String key, dynamic value) async {
+    try {
+      final jsonString = value is Map || value is List
+          ? jsonEncode(value)
+          : jsonEncode(value.toJson());
+      return await setString(key, jsonString);
+    } catch (e) {
+      print('StorageService: setJson 失败 - $e');
+      return false;
+    }
+  }
+
+  static T? getJson<T>(
+    String key, {
+    T Function(Map<String, dynamic>)? fromJson,
+  }) {
+    try {
+      final jsonString = getString(key);
+      if (jsonString == null || jsonString.isEmpty) {
+        return null;
+      }
+
+      final decoded = jsonDecode(jsonString);
+      if (fromJson != null && decoded is Map<String, dynamic>) {
+        return fromJson(decoded);
+      }
+      return decoded as T?;
+    } catch (e) {
+      print('StorageService: getJson 失败 - $e');
+      return null;
+    }
+  }
+
+  static Future<bool> remove(String key) async {
+    return _instance.remove(key);
+  }
+
+  static Future<bool> clear() async {
+    return _instance.clear();
+  }
+
+  static Future<void> removeMultiple(List<String> keys) async {
+    for (final key in keys) {
+      await remove(key);
+    }
+  }
+
+  static bool containsKey(String key) {
+    return _instance.containsKey(key);
+  }
+
+  static Set<String> getAllKeys() {
+    return _instance.getKeys();
+  }
+
+  static Future<int> incrementInt(String key, {int increment = 1}) async {
+    final currentValue = getInt(key, defaultValue: 0) ?? 0;
+    final newValue = currentValue + increment;
+    await setInt(key, newValue);
+    return newValue;
+  }
+
+  static Future<bool> toggleBool(String key) async {
+    final currentValue = getBool(key, defaultValue: false) ?? false;
+    final newValue = !currentValue;
+    await setBool(key, newValue);
+    return newValue;
+  }
+
+  static Future<bool> addToStringList(String key, String value) async {
+    final list = getStringList(key, defaultValue: []) ?? [];
+    if (!list.contains(value)) {
+      list.add(value);
+      return setStringList(key, list);
+    }
+    return true;
+  }
+
+  static Future<bool> removeFromStringList(String key, String value) async {
+    final list = getStringList(key, defaultValue: []) ?? [];
+    if (list.contains(value)) {
+      list.remove(value);
+      return setStringList(key, list);
+    }
+    return true;
+  }
+
+  static const String kAutoBackToChatAfterTaskKey =
+      'auto_back_to_chat_after_task';
+  static const String kHabitualHandKey = 'habitual_hand';
+  static const String kThemeOptionKey = 'theme_option';
+  static const String kLanguageOptionKey = 'language_option';
+
+  static Future<bool> isAutoBackToChatAfterTaskEnabled() async {
+    final enabled = getBool(kAutoBackToChatAfterTaskKey, defaultValue: true);
+    return enabled ?? true;
+  }
+
+  static Future<void> setAutoBackToChatAfterTaskEnabled(bool enabled) async {
+    await setBool(kAutoBackToChatAfterTaskKey, enabled);
+  }
+
+  static HabitualHand getHabitualHand() {
+    return habitualHandFromStorageValue(
+      getString(
+        kHabitualHandKey,
+        defaultValue: HabitualHand.right.storageValue,
+      ),
+    );
+  }
+
+  static Future<bool> setHabitualHand(HabitualHand hand) async {
+    return setString(kHabitualHandKey, hand.storageValue);
+  }
+
+  static AppThemeMode getThemeMode() {
+    return appThemeModeFromString(
+      getString(
+        kThemeOptionKey,
+        defaultValue: AppThemeMode.system.storageValue,
+      ),
+    );
+  }
+
+  static Future<void> setThemeMode(AppThemeMode mode) async {
+    await setString(kThemeOptionKey, mode.storageValue);
+  }
+
+  static AppLanguageMode getLanguageMode() {
+    return AppLanguageMode.fromStorageValue(
+      getString(
+        kLanguageOptionKey,
+        defaultValue: AppLanguageMode.system.storageValue,
+      ),
+    );
+  }
+
+  static Future<void> setLanguageMode(AppLanguageMode mode) async {
+    await setString(kLanguageOptionKey, mode.storageValue);
+  }
+
+  static ResolvedAppLocale getResolvedAppLocale({Locale? systemLocale}) {
+    return resolveAppLocale(
+      mode: getLanguageMode(),
+      systemLocale: systemLocale ?? PlatformDispatcher.instance.locale,
+    );
+  }
+
+  static Locale getResolvedLocale({Locale? systemLocale}) {
+    return getResolvedAppLocale(systemLocale: systemLocale).locale;
+  }
+}
