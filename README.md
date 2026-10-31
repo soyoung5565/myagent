@@ -10,11 +10,12 @@
 <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-Android-7F52FF?logo=kotlin&logoColor=white">
 <img alt="Flutter" src="https://img.shields.io/badge/Flutter-UI-02569B?logo=flutter&logoColor=white">
 <img alt="Android" src="https://img.shields.io/badge/Android-API%2026%2B-3DDC84?logo=android&logoColor=white">
-<a href="https://github.com/omnimind-ai/OpenOmniBot"><img alt="Based on OpenOmniBot" src="https://img.shields.io/badge/based%20on-OpenOmniBot-8A2BE2"></a>
 
 </div>
 
-> 本项目是基于开源项目 **[OpenOmniBot](https://github.com/omnimind-ai/OpenOmniBot)** 的**融合开发版**（个人二次开发）：在继承上游端侧 AI Agent 全部能力的基础上，进行了持续的定制开发与功能集成。
+> 本项目是 **[OpenOmniBot](https://github.com/omnimind-ai/OpenOmniBot)**（AGPL v3）的**深度融合开发版**。
+> 上游提供了端侧 Agent 的骨架；本仓库的绝大部分代码是**我重写的** —— 实测 **574 个 Kotlin/Java 文件 / 71,092 行** + **390 个 Dart 文件 / 134,514 行**，
+> 核心模块（Agent 编排、记忆系统、浏览器自动化、视觉检测）基本全部重写，详见「我重写了什么」。
 
 ## 📖 项目简介
 
@@ -36,6 +37,52 @@ MyAgent 是一个运行在 Android 设备上的端侧 AI Agent。与传统 AI �
 | ⏰ **任务与调度** | 定时任务、子代理流程、闹钟、日历创建/查询/修改、音频播放控制 |
 | 🤖 **Codex 集成** | App 内直接连接 Codex App Server，支持多线程会话与斜杠命令 |
 | 🎨 **原生体验融合** | 悬浮球与半屏表面（Overlay）、Flutter 与原生 Kotlin 混合渲染 |
+
+## 🛠 我重写了什么
+
+上游给的是"能跑起来的骨架"，这个项目真正的价值在于**把它改造成能干活的 Agent**。以下是我逐块重写或新建的部分：
+
+### 1. Agent 编排层（重写）
+
+| 文件 | 行数 | 作用 |
+|---|---|---|
+| `AssistsCoreManager.kt` | 5,921 | 自动化引擎总控：任务状态机、视觉检测调度、执行控制 |
+| `AgentToolDefinitions.kt` | 2,323 | 工具定义层：每个工具的参数 schema 与描述（Agent 靠它决定调什么） |
+| `AgentConversationHistorySupport.kt` | 1,862 | 对话历史管理、上下文裁剪 |
+| `AgentWorkspaceManager.kt` | 938 | Agent 工作区（文件读写、目录浏览） |
+| `chat_conversation_runtime_coordinator.dart` | 3,194 | Flutter 侧对话运行时协调：流式渲染、状态同步、中断处理 |
+
+### 2. 视觉检测子系统（重写）
+
+自研的**图标 / 按钮 / 页面元素**检测器，让 Agent 不依赖固定坐标也能找到目标：
+
+| 文件 | 行数 |
+|---|---|
+| `detectors/icon/IconDetector.kt` | 2,215 |
+| `detectors/button/CloseButtonDetector.kt` | 1,811 |
+| `detection/`（整套检测框架） | — |
+
+### 3. 浏览器自动化（新建）
+
+`BrowserUseEngine.kt`（3,788 行）—— 让 Agent 真正能开浏览器、填表单、点按钮、读页面，而不只是操作 App 界面。
+
+### 4. 记忆系统（重写）
+
+`WorkspaceMemoryService.kt`（1,149 行）—— 短期 / 长期记忆 + 嵌入检索。让 Agent 跨会话记住用户偏好，而不是每轮都失忆。
+
+### 5. Codex App Server 集成（新建）
+
+`CodexAppServerManager.kt`（1,126 行）—— App 内直接连 Codex App Server，多线程会话 + 斜杠命令。这是我加的扩展，上游没有。
+
+### 6. 内嵌终端（集成第三方 + 改造）
+
+`EmbeddedTerminalRuntime.kt`（1,698 行）—— 基于 [ReTerminal](https://github.com/RohitKushvaha01/ReTerminal)（MIT）接入 Alpine Linux 终端，让 Agent 有真正的 shell。
+
+### 7. 自动化任务的 HTTP 控制面（新建）
+
+`HttpController.kt`（2,593 行）—— 把整个自动化引擎暴露成 HTTP 接口，外部可以直接下发任务、查状态、拉执行日志。
+
+---
 
 ## 📱 界面展示
 
@@ -107,11 +154,16 @@ cd ..
 
 ## 🔗 与上游项目的关系
 
-本仓库为 **[OpenOmniBot](https://github.com/omnimind-ai/OpenOmniBot)** 的融合开发版。上游是一个由社区共建的端侧 AI Agent 开源项目；本仓库在继承其架构与能力的基础上进行个人二次开发与定制（包括 Codex App Server 集成等扩展），用于学习、研究与个人使用。
+本仓库是 **[OpenOmniBot](https://github.com/omnimind-ai/OpenOmniBot)** 的融合开发版，基于 AGPL v3 协议。
+
+- **协议**：保持上游的 AGPL v3 + 商业双许可，未修改（见 `LICENSE`）
+- **自研比例**：核心模块（Agent 编排、记忆、浏览器自动化、视觉检测、HTTP 控制面）全部重写，上游只提供了工程骨架与模块划分
+- **新增能力**：Codex App Server 集成、HTTP 任务控制面等为本人新增
+- **子模块**：`third_party/omniinfer` 是本地推理运行时子模块，clone 后需 `git submodule update --init`
 
 ## 🙏 致谢
 
-- [OpenOmniBot](https://github.com/omnimind-ai/OpenOmniBot) —— 本项目的基础框架与上游来源
+- [OpenOmniBot](https://github.com/omnimind-ai/OpenOmniBot) —— 本项目的基础框架与上游来源（AGPL v3）
 - [ReTerminal](https://github.com/RohitKushvaha01/ReTerminal) —— 内嵌终端模块（MIT License）
 - [OpenMinis / MinisSkills](https://github.com/OpenMinis) —— 技能生态
 
